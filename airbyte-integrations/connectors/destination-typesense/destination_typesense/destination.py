@@ -17,8 +17,9 @@ def get_client(config: Mapping[str, Any]) -> Client:
     host = config.get("host")
     port = config.get("port") or "8108"
     protocol = config.get("protocol") or "https"
-
-    client = Client({"api_key": api_key, "nodes": [{"host": host, "port": port, "protocol": protocol}], "connection_timeout_seconds": 5400})
+    timeout = config.get("timeout") or 3600
+    
+    client = Client({"api_key": api_key, "nodes": [{"host": host, "port": port, "protocol": protocol}], "connection_timeout_seconds": timeout})
 
     return client
 
