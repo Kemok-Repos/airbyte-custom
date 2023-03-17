@@ -38,6 +38,12 @@
         "type": "integer",
         "description": "How many documents should be imported together. Default 1000",
         "order": 4
+      },
+      "timeout": {
+        "title": "Timeout seconds",
+        "type": "integer",
+        "description": "How many seconds should be waited before timing out. Default 3600",
+        "order": 5
       }
     }
   }
