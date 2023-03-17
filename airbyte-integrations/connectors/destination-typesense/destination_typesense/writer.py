@@ -14,10 +14,10 @@ logger = getLogger("airbyte")
 class TypesenseWriter:
     write_buffer = []
 
-    def __init__(self, client: Client, steam_name: str, batch_size: int = 1000):
+    def __init__(self, client: Client, stream_name: str, batch_size: int = None):
         self.client = client
-        self.steam_name = steam_name
-        self.batch_size = batch_size
+        self.stream_name = stream_name
+        self.batch_size = batch_size or 10000
 
     def queue_write_operation(self, data: Mapping):
         random_key = str(uuid4())
@@ -30,6 +30,6 @@ class TypesenseWriter:
         buffer_size = len(self.write_buffer)
         if buffer_size == 0:
             return
-        logger.info(f"flushing {buffer_size} records")
-        self.client.collections[self.steam_name].documents.import_(self.write_buffer)
+        logger.info(f"uploading {buffer_size} records to Typesense")
+        self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()

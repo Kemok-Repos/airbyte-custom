@@ -31,15 +31,15 @@ class DestinationTypesense(Destination):
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
-            steam_name = configured_stream.stream.name
+            stream_name = configured_stream.stream.name
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    client.collections[steam_name].delete()
+                    client.collections[stream_name].delete()
                 except Exception:
                     pass
-                client.collections.create({"name": steam_name, "fields": [{"name": ".*", "type": "auto"}]})
+                client.collections.create({"name": stream_name, "fields": [{"name": ".*", "type": "auto"}]})
 
-            writer = TypesenseWriter(client, steam_name, config.get("batch_size"))
+            writer = TypesenseWriter(client, stream_name, config.get("batch_size"))
             for message in input_messages:
                 if message.type == Type.STATE:
                     writer.flush()
