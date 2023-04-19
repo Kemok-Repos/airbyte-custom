@@ -21,7 +21,7 @@ class TypesenseWriter:
 
     def queue_write_operation(self, data: Mapping):
         random_key = str(uuid4())
-        data_with_id = data if "id" in data else {**data, "id": random_key}
+        data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
         self.write_buffer.append(data_with_id)
         if len(self.write_buffer) == self.batch_size:
             self.flush()
@@ -30,6 +30,6 @@ class TypesenseWriter:
         buffer_size = len(self.write_buffer)
         if buffer_size == 0:
             return
-        logger.info(f"uploading {buffer_size} records to Typesense")
+        logger.info(f"uploading {buffer_size} records to Typesense's {self.stream_name} collection")
         self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()
