@@ -3,7 +3,7 @@
 #
 
 
-from logging import Logger
+from logging import Logger, getLogger
 from typing import Any, Iterable, Mapping
 
 from airbyte_cdk.destinations import Destination
@@ -11,6 +11,7 @@ from airbyte_cdk.models import AirbyteConnectionStatus, AirbyteMessage, Configur
 from destination_typesense.writer import TypesenseWriter
 from typesense import Client
 
+logger = getLogger("airbyte")
 
 def get_client(config: Mapping[str, Any]) -> Client:
     api_key = config.get("api_key")
@@ -34,10 +35,12 @@ class DestinationTypesense(Destination):
             stream_name = configured_stream.stream.name
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    client.collections[stream_name].delete()
-                except Exception:
+                    client.collections[stream_name].documents.delete({'filter_by': 'cantidad:>=0'}))
+                    logger.info(f"All previous records with cantidad >= 0 deleted from collection {stream_name}")
+                except Exception as e:
+                    logger.error(f"Error deleting previous records for typesense collection {stream_name}: {e}")
                     pass
-                client.collections.create({"name": stream_name, "fields": [{"name": ".*", "type": "auto"}]})
+                # client.collections.create({"name": stream_name, "fields": [{"name": ".*", "type": "auto"}]})
 
             writer = TypesenseWriter(client, stream_name, config.get("batch_size"))
             for message in input_messages:
