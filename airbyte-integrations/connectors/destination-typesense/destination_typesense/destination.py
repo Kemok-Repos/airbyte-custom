@@ -35,7 +35,7 @@ class DestinationTypesense(Destination):
             stream_name = configured_stream.stream.name
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    client.collections[stream_name].documents.delete({'filter_by': 'cantidad:>=0'}))
+                    client.collections[stream_name].documents.delete({'filter_by': 'cantidad:>=0'})
                     logger.info(f"All previous records with cantidad >= 0 deleted from collection {stream_name}")
                 except Exception as e:
                     logger.error(f"Error deleting previous records for typesense collection {stream_name}: {e}")
