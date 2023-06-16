@@ -35,12 +35,16 @@ class DestinationTypesense(Destination):
             stream_name = configured_stream.stream.name
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    client.collections[stream_name].documents.delete({'filter_by': 'cantidad:>=0'})
-                    logger.info(f"All previous records with cantidad >= 0 deleted from collection {stream_name}")
+                    logger.info(f"Borrando de typesense la collection {stream_name}")
+                    client.collections[stream_name].delete()
+                    logger.info(f"Clonando collection template de typesense")
+                    client.api_call.post('/collections?src_name=template_collection', {
+                        "name": stream_name
+                    })
+                    logger.info(f"Se creó la collection {stream_name} exitosamente")
                 except Exception as e:
                     logger.error(f"Error deleting previous records for typesense collection {stream_name}: {e}")
                     pass
-                # client.collections.create({"name": stream_name, "fields": [{"name": ".*", "type": "auto"}]})
 
             writer = TypesenseWriter(client, stream_name, config.get("batch_size"))
             for message in input_messages:
