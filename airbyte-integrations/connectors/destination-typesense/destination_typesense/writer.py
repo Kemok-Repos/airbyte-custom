@@ -22,11 +22,12 @@ class TypesenseWriter:
     def queue_write_operation(self, data: Mapping):
         # random_key = str(uuid4())
         # data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
-        clean_data = data
         if data.get("nombre"):
-            clean_data["nombre"] = clean_text(data["nombre"])
+            data["nombre"] = clean_text(data["nombre"])
         if data.get("caracteristicas"):
-            clean_data["caracteristicas"] = clean_text(data["caracteristicas"])
+            data["caracteristicas"] = clean_text(data["caracteristicas"])
+        if data.get("unidad_medida"):
+            data["unidad_medida"] = clean_text(data["unidad_medida"])
             
         self.write_buffer.append(clean_data)
         if len(self.write_buffer) == self.batch_size:
