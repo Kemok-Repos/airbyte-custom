@@ -20,9 +20,15 @@ class TypesenseWriter:
         self.batch_size = batch_size or 10000
 
     def queue_write_operation(self, data: Mapping):
-        random_key = str(uuid4())
-        data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
-        self.write_buffer.append(data_with_id)
+        # random_key = str(uuid4())
+        # data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
+        clean_data = data
+        if data.get("nombre"):
+            clean_data["nombre"] = clean_text(data["nombre"])
+        if data.get("caracteristicas"):
+            clean_data["caracteristicas"] = clean_text(data["caracteristicas"])
+            
+        self.write_buffer.append(clean_data)
         if len(self.write_buffer) == self.batch_size:
             self.flush()
 
@@ -33,3 +39,11 @@ class TypesenseWriter:
         logger.info(f"uploading {buffer_size} records to Typesense's {self.stream_name} collection")
         self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()
+
+    def clean_text(self, text: str):
+        # Separate numbers from units of measurement
+        text = re.sub(r'(\d+)([a-zA-Z]+)', r'\1 \2', text)
+        # Replace periods with spaces except for decimal numbers
+        text = re.sub(r'(?<!\d)\.(?!\d)|\.(?=\s|$)', ' ', text)
+    
+        return text
