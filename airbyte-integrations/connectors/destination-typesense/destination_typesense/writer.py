@@ -5,6 +5,7 @@
 from collections.abc import Mapping
 from logging import getLogger
 from uuid import uuid4
+import re
 
 from typesense import Client
 
