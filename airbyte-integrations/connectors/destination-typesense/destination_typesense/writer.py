@@ -29,7 +29,7 @@ class TypesenseWriter:
         if data.get("unidad_medida"):
             data["unidad_medida"] = clean_text(data["unidad_medida"])
             
-        self.write_buffer.append(clean_data)
+        self.write_buffer.append(data)
         if len(self.write_buffer) == self.batch_size:
             self.flush()
 
