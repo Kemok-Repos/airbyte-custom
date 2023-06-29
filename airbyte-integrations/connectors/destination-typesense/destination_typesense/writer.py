@@ -23,11 +23,11 @@ class TypesenseWriter:
         # random_key = str(uuid4())
         # data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
         if data.get("nombre"):
-            data["nombre"] = clean_text(data["nombre"])
+            data["nombre"] = self.clean_text(data["nombre"])
         if data.get("caracteristicas"):
-            data["caracteristicas"] = clean_text(data["caracteristicas"])
+            data["caracteristicas"] = self.clean_text(data["caracteristicas"])
         if data.get("unidad_medida"):
-            data["unidad_medida"] = clean_text(data["unidad_medida"])
+            data["unidad_medida"] = self.clean_text(data["unidad_medida"])
             
         self.write_buffer.append(data)
         if len(self.write_buffer) == self.batch_size:
