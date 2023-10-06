@@ -36,11 +36,12 @@ class DestinationTypesense(Destination):
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
                     collections = [collection['name'] for collection in client.collections.retrieve()]
+                    template_sufix = '_npg' if 'npg' in stream_name.lower() else ''
                     if stream_name in collections:
                         logger.info(f"Borrando de typesense la collection {stream_name}")
                         client.collections[stream_name].delete()
                     logger.info(f"Clonando collection template de typesense")
-                    client.api_call.post('/collections?src_name=template_collection', {
+                    client.api_call.post(f'/collections?src_name=template_collection{template_sufix}', {
                         "name": stream_name
                     })
                     logger.info(f"Se creó la collection {stream_name} exitosamente")
