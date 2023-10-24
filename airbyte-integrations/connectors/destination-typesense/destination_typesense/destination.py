@@ -80,11 +80,7 @@ class DestinationTypesense(Destination):
                 if old_collection:
                     client.collections[old_collection[0]].delete()
                 
-
                 
-
-            
-
     def check(self, logger: Logger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
         try:
             client = get_client(config=config)
