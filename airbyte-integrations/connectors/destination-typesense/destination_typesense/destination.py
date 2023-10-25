@@ -47,7 +47,7 @@ class DestinationTypesense(Destination):
                         client.collections[stream_name].delete()
                     if npg_type:
                         # Se define el nombre de la nueva colección
-                        stream_name += datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+                        stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
                         
                     logger.info(f"Clonando collection template de typesense")
                     client.api_call.post(f'/collections?src_name=template_collection{sufix}', {"name": stream_name})
@@ -74,7 +74,7 @@ class DestinationTypesense(Destination):
                 old_collection = [alias['collection'] for alias in client.aliases.retrieve()['aliases'] if alias['name'] == expected_collection_name]
                 
                 # Se crea o actualiza el alias
-                client.aliases.upsert(expected_collection_name, aliased_collection = {'collection_name': stream_name})
+                client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
                 
                 # Elimación de la colección desactualizada
                 if old_collection:
