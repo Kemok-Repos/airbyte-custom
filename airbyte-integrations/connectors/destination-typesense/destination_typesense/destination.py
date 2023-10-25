@@ -71,7 +71,7 @@ class DestinationTypesense(Destination):
                 expected_collection_name = configured_stream.stream.name
                 
                 # Se busca el nombre de la colección desactualizada
-                old_collection = [alias['collection'] for alias in client.aliases.retrieve()['aliases'] if alias['name'] == expected_collection_name]
+                old_collection = [alias['collection_name'] for alias in client.aliases.retrieve().get('aliases', None) if alias['name'] == expected_collection_name]
                 
                 # Se crea o actualiza el alias
                 client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
