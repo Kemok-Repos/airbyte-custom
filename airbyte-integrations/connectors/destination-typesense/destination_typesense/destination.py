@@ -8,7 +8,7 @@ from typing import Any, Iterable, Mapping
 from airbyte_cdk.destinations import Destination
 from airbyte_cdk.models import AirbyteConnectionStatus, AirbyteMessage, ConfiguredAirbyteCatalog, DestinationSyncMode, Status, Type
 from destination_typesense.writer import TypesenseWriter
-from typesense import Client
+from typesense import Client, exceptions
 
 
 logger = getLogger("airbyte")
@@ -33,21 +33,14 @@ class DestinationTypesense(Destination):
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
-            stream_name = configured_stream.stream.name
-            # Variables en caso de ser NPGs
-            npg_type = 'npg' in stream_name.lower()
-            sufix = '_npg' if npg_type else ''
+            # Variables
+            stream_name = expected_collection_name = configured_stream.stream.name
+            sufix = '_npg' if 'npg' in stream_name.lower() else ''
             
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    collections = [collection['name'] for collection in client.collections.retrieve()]
-                    # En caso de no ser NPGs client.collections.retrieve no regresa el alias
-                    if stream_name in collections and not npg_type:
-                        logger.info(f"Borrando de typesense la collection {stream_name}")
-                        client.collections[stream_name].delete()
-                    if npg_type:
-                        # Se define el nombre de la nueva colección
-                        stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
+                    # Se define el nombre de la nueva colección
+                    stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
                         
                     logger.info(f"Clonando collection template de typesense")
                     client.api_call.post(f'/collections?src_name=template_collection{sufix}', {"name": stream_name})
@@ -67,18 +60,23 @@ class DestinationTypesense(Destination):
                     continue
             writer.flush()
             
-            if npg_type:
-                expected_collection_name = configured_stream.stream.name
-                
-                # Se busca el nombre de la colección desactualizada
-                old_collection = [alias['collection_name'] for alias in client.aliases.retrieve().get('aliases', None) if alias['name'] == expected_collection_name]
-                
-                # Se crea o actualiza el alias
-                client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
-                
-                # Elimación de la colección desactualizada
-                if old_collection:
-                    client.collections[old_collection[0]].delete()
+            # Se busca el nombre de la colección desactualizada
+            aliases_list = client.aliases.retrieve().get('aliases', None)
+            old_collection = [alias['collection_name'] for alias in aliases_list if alias['name'] == expected_collection_name]
+            
+            # Se crea o actualiza el alias
+            client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
+            
+            # Elimación de la colección desactualizada, en caso de existir
+            if old_collection:
+                old_collection_name = old_collection[0]
+                try:
+                    client.collections[old_collection_name].delete()
+                    logger.info(f"Se elimino la collection {old_collection_name} exitosamente")
+                except exceptions.ObjectNotFound:
+                    logger.info(f"Omitiendo eliminación de la collection {old_collection_name}. Ya fue eliminada anteriormente")
+                except Exception as e:
+                    logger.error(f"Error eliminando collection de typesense {old_collection_name}: {e}")
                 
                 
     def check(self, logger: Logger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
