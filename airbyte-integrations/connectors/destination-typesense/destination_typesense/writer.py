@@ -21,8 +21,8 @@ class TypesenseWriter:
         self.batch_size = batch_size or 10000
 
     def queue_write_operation(self, data: Mapping):
-        # random_key = str(uuid4())
-        # data_with_id = data if ("id" in data and data["id"]) else {**data, "id": random_key}
+        if not data.get("id"):
+            data["id"] = str(uuid4())
         if data.get("nombre"):
             data["nombre"] = self.clean_text(data["nombre"])
         if data.get("caracteristicas"):

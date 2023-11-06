@@ -33,9 +33,13 @@ class DestinationTypesense(Destination):
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
-            # Variables
             stream_name = expected_collection_name = configured_stream.stream.name
-            sufix = '_npg' if 'npg' in stream_name.lower() else ''
+            if 'panama_' in stream_name.lower():
+                template_collection = 'panama_template_collection'
+            elif 'npg' in stream_name.lower():
+                template_collection = 'template_collection_npg'
+            else:
+                template_collection = 'template_collection'
             
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
@@ -43,7 +47,7 @@ class DestinationTypesense(Destination):
                     stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
                         
                     logger.info(f"Clonando collection template de typesense")
-                    client.api_call.post(f'/collections?src_name=template_collection{sufix}', {"name": stream_name})
+                    client.api_call.post(f'/collections?src_name={template_collection}', {"name": stream_name})
                     logger.info(f"Se creó la collection {stream_name} exitosamente")
                 except Exception as e:
                     logger.error(f"Error recreando collection de typesense {stream_name}: {e}")
