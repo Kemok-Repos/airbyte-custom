@@ -29,6 +29,8 @@ class TypesenseWriter:
             data["caracteristicas"] = self.clean_text(data["caracteristicas"])
         if data.get("unidad_medida"):
             data["unidad_medida"] = self.clean_text(data["unidad_medida"])
+        if data.get("detalle"):
+            data["detalle"] = self.clean_text(data["detalle"])
             
         self.write_buffer.append(data)
         if len(self.write_buffer) == self.batch_size:
