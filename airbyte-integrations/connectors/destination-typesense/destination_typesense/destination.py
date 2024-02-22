@@ -28,12 +28,16 @@ def get_client(config: Mapping[str, Any]) -> Client:
 
 class DestinationTypesense(Destination):
     def write(
-        self, config: Mapping[str, Any], configured_catalog: ConfiguredAirbyteCatalog, input_messages: Iterable[AirbyteMessage]
+        self,
+        config: Mapping[str, Any],
+        configured_catalog: ConfiguredAirbyteCatalog,
+        input_messages: Iterable[AirbyteMessage]
     ) -> Iterable[AirbyteMessage]:
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
             stream_name = expected_collection_name = configured_stream.stream.name
+            # Escoger la collection template de typesense correspondiente al proceso
             if 'panama_' in stream_name.lower():
                 template_collection = 'panama_template_collection'
             elif 'npg' in stream_name.lower():
@@ -43,44 +47,51 @@ class DestinationTypesense(Destination):
             
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    # Se define el nombre de la nueva colección
+                    # Se define el nombre de la nueva colección y se crea como un clon del template
                     stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
-                        
-                    logger.info(f"Clonando collection template de typesense")
+                    logger.info(f"Clonando la collection template '{template_collection}' de typesense")
                     client.api_call.post(f'/collections?src_name={template_collection}', {"name": stream_name})
                     logger.info(f"Se creó la collection {stream_name} exitosamente")
                 except Exception as e:
-                    logger.error(f"Error recreando collection de typesense {stream_name}: {e}")
-                    return
+                    logger.error(f"Error creando la nueva collection de typesense ({stream_name}): {e}")
+                    raise
 
-            writer = TypesenseWriter(client, stream_name, config.get("batch_size"))
-            for message in input_messages:
-                if message.type == Type.STATE:
-                    writer.flush()
-                    yield message
-                elif message.type == Type.RECORD:
-                    writer.queue_write_operation(message.record.data)
-                else:
-                    continue
-            writer.flush()
+            # Transferir los records de postgres a typesense
+            try:
+                writer = TypesenseWriter(client, stream_name, config.get("batch_size"))
+                for message in input_messages:
+                    if message.type == Type.STATE:
+                        writer.flush()
+                        yield message
+                    elif message.type == Type.RECORD:
+                        writer.queue_write_operation(message.record.data)
+                    else:
+                        continue
+                writer.flush()
+            except Exception as e:
+                logger.error(f"Error escribiendo la data en la nueva collection de typesense: {e}")
+                logger.warning(f"Se eliminará la collection recién creada ({stream_name}) para evitar datos incompletos")
+                client.collections[stream_name].delete()
+                raise
             
             # Se busca el nombre de la colección desactualizada
             aliases_list = client.aliases.retrieve().get('aliases', None)
             old_collection = [alias['collection_name'] for alias in aliases_list if alias['name'] == expected_collection_name]
             
-            # Se crea o actualiza el alias
+            # Se crea o actualiza el alias para apuntar a la nueva colección
             client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
             
-            # Elimación de la colección desactualizada, en caso de existir
+            # Se elimina la colección vieja en caso de existir
             if old_collection:
-                old_collection_name = old_collection[0]
                 try:
+                    old_collection_name = old_collection[0]
                     client.collections[old_collection_name].delete()
                     logger.info(f"Se elimino la collection {old_collection_name} exitosamente")
                 except exceptions.ObjectNotFound:
-                    logger.info(f"Omitiendo eliminación de la collection {old_collection_name}. Ya fue eliminada anteriormente")
+                    logger.info(f"Omitiendo eliminación de la collection {old_collection_name}. Ya fue eliminada anteriormente o no existe")
                 except Exception as e:
                     logger.error(f"Error eliminando collection de typesense {old_collection_name}: {e}")
+                    raise
                 
                 
     def check(self, logger: Logger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
