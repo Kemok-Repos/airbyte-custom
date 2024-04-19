@@ -51,5 +51,5 @@ class TypesenseWriter:
         # Replace all dots with spaces (except decimal places)
         text = self.dot_pattern.sub(' ', text)
         # Separate numbers from units of measurement
-        text = self.dot_pattern.sub(r'\1 \2', text)
+        text = self.unit_pattern.sub(r'\1 \2', text)
         return text
