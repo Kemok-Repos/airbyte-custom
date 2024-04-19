@@ -19,19 +19,20 @@ class TypesenseWriter:
         self.client = client
         self.stream_name = stream_name
         self.batch_size = batch_size or 10000
+        # Initializing text sanitization regex patterns outisde loop for better performance
+        self.dot_pattern = re.compile(r'(?<!\d)\.(?!\d)|(?<=\D)\.(?=\d)|(?<=\d)\.(?=\D)')
+        self.unit_pattern = re.compile(r'(\d+)([a-zA-Z]+)')
 
     def queue_write_operation(self, data: Mapping):
-        if not data.get("id"):
-            data["id"] = str(uuid4())
-        if data.get("nombre"):
-            data["nombre"] = self.clean_text(data["nombre"])
-        if data.get("caracteristicas"):
-            data["caracteristicas"] = self.clean_text(data["caracteristicas"])
-        if data.get("unidad_medida"):
-            data["unidad_medida"] = self.clean_text(data["unidad_medida"])
-        if data.get("detalle"):
-            data["detalle"] = self.clean_text(data["detalle"])
-            
+        # Set default id if not provided
+        data.setdefault("id", str(uuid4()))
+        
+        # Sanitize necessary text fields
+        fields_to_clean = ["nombre", "caracteristicas", "unidad_medida", "detalle"]
+        for field in fields_to_clean:
+            if field in data:
+                data[field] = self.clean_text(data[field])
+        
         self.write_buffer.append(data)
         if len(self.write_buffer) == self.batch_size:
             self.flush()
@@ -40,14 +41,15 @@ class TypesenseWriter:
         buffer_size = len(self.write_buffer)
         if buffer_size == 0:
             return
-        logger.info(f"uploading {buffer_size} records to Typesense's {self.stream_name} collection")
+        logger.info(f"Uploading {buffer_size} records to Typesense's {self.stream_name} collection")
         self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()
 
     def clean_text(self, text: str):
+        if not text:
+            return None
+        # Replace all dots with spaces (except decimal places)
+        text = self.dot_pattern.sub(' ', text)
         # Separate numbers from units of measurement
-        text = re.sub(r'(\d+)([a-zA-Z]+)', r'\1 \2', text)
-        # Replace periods with spaces except for decimal numbers
-        text = re.sub(r'(?<!\d)\.(?!\d)|\.(?=\s|$)', ' ', text)
-    
+        text = self.dot_pattern.sub(r'\1 \2', text)
         return text
