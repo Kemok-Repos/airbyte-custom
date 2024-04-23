@@ -47,7 +47,7 @@ class TypesenseWriter:
 
     def clean_text(self, text: str):
         if not text:
-            return None
+            return text
         # Replace all dots with spaces (except decimal places)
         text = self.dot_pattern.sub(' ', text)
         # Separate numbers from units of measurement
