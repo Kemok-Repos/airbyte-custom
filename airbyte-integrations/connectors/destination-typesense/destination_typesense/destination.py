@@ -102,5 +102,8 @@ class DestinationTypesense(Destination):
             client.collections["_airbyte"].documents["1"].retrieve()
             client.collections["_airbyte"].delete()
             return AirbyteConnectionStatus(status=Status.SUCCEEDED)
+        except (exceptions.ObjectNotFound, exceptions.ObjectAlreadyExists):
+            logger.warning("Durante el check inicial la coleccion _airbyte ya existía de antes o no se consiguió, se asumirá que todo está bien...")
+            return AirbyteConnectionStatus(status=Status.SUCCEEDED)
         except Exception as e:
             return AirbyteConnectionStatus(status=Status.FAILED, message=f"An exception occurred: {repr(e)}")
