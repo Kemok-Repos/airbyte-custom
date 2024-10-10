@@ -36,7 +36,7 @@ class DestinationTypesense(Destination):
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
-            stream_name = expected_collection_name = configured_stream.stream.name
+            stream_name = target_alias = configured_stream.stream.name
             # Escoger la collection template de typesense correspondiente al proceso
             if 'panama_' in stream_name.lower():
                 template_collection = 'panama_template_collection'
@@ -45,9 +45,25 @@ class DestinationTypesense(Destination):
             else:
                 template_collection = 'template_collection'
             
+            # Obtener la lista de aliases y collections existentes en Typesense
+            collections = [col['name'] for col in client.collections.retrieve()]
+            aliases = client.aliases.retrieve().get('aliases', [])
+
+            # Collection vieja que se va a reemplazar
+            old_collection = next((alias['collection_name'] for alias in aliases if alias['name'] == target_alias), None)
+
+            # Eliminar posibles collections que hayan quedado stale por algún error de Sync en intentos previos
+            collections_to_delete = [col for col in collections if col.startswith(target_alias) and col != old_collection]
+            for collection in collections_to_delete:
+                try:
+                    client.collections[collection].delete()
+                    logger.info(f"Se elimino la collection stale '{collection}' exitosamente")
+                except Exception as e:
+                    logger.error(f"Error eliminando collection de typesense {collection}: {e}")
+            
+            # Definir el nombre de la nueva colección y se crea como un clon del template
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 try:
-                    # Se define el nombre de la nueva colección y se crea como un clon del template
                     stream_name += f'_{datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")}'
                     logger.info(f"Clonando la collection template '{template_collection}' de typesense")
                     client.api_call.post(f'/collections?src_name={template_collection}', {"name": stream_name})
@@ -74,23 +90,18 @@ class DestinationTypesense(Destination):
                 client.collections[stream_name].delete()
                 raise
             
-            # Se busca el nombre de la colección desactualizada
-            aliases_list = client.aliases.retrieve().get('aliases', None)
-            old_collection = [alias['collection_name'] for alias in aliases_list if alias['name'] == expected_collection_name]
+            # Crear o actualizar el alias para apuntar a la nueva collection
+            client.aliases.upsert(target_alias, {'collection_name': stream_name})
             
-            # Se crea o actualiza el alias para apuntar a la nueva colección
-            client.aliases.upsert(expected_collection_name, {'collection_name': stream_name})
-            
-            # Se elimina la colección vieja en caso de existir
+            # Eliminar la collection vieja en caso de existir
             if old_collection:
                 try:
-                    old_collection_name = old_collection[0]
-                    client.collections[old_collection_name].delete()
-                    logger.info(f"Se elimino la collection {old_collection_name} exitosamente")
+                    client.collections[old_collection].delete()
+                    logger.info(f"Se elimino la collection {old_collection} exitosamente")
                 except exceptions.ObjectNotFound:
-                    logger.info(f"Omitiendo eliminación de la collection {old_collection_name}. Ya fue eliminada anteriormente o no existe")
+                    logger.info(f"Omitiendo eliminación de la collection anterior {old_collection}. Ya fue eliminada anteriormente o no existe")
                 except Exception as e:
-                    logger.error(f"Error eliminando collection de typesense {old_collection_name}: {e}")
+                    logger.error(f"Error eliminando collection anterior de typesense {old_collection}: {e}")
                     raise
                 
                 
