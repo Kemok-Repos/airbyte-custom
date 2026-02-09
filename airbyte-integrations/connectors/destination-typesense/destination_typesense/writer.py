@@ -1,4 +1,4 @@
-#
+rr#
 # Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
@@ -13,12 +13,11 @@ logger = getLogger("airbyte")
 
 
 class TypesenseWriter:
-    write_buffer = []
-
     def __init__(self, client: Client, stream_name: str, batch_size: int = None):
         self.client = client
         self.stream_name = stream_name
         self.batch_size = batch_size or 10000
+        self.write_buffer = []
         # Initializing text sanitization regex patterns outisde loop for better performance
         self.dot_pattern = re.compile(r'(?<!\d)\.(?!\d)|(?<=\D)\.(?=\d)|(?<=\d)\.(?=\D)')
         self.unit_pattern = re.compile(r'(\d+)([a-zA-Z]+)')
