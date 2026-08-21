@@ -93,8 +93,20 @@ class DestinationTypesense(Destination):
                     logger.error(f"Error eliminando la collection incompleta {stream_name}: {cleanup_error}")
                 raise
             
-            # Crear o actualizar el alias para apuntar a la nueva collection
-            client.aliases.upsert(target_alias, {'collection_name': stream_name})
+            # Crear o actualizar el alias para apuntar a la nueva collection. Este es el punto de
+            # conmutación: hasta acá el alias sigue sirviendo la collection vieja y después de acá
+            # sirve la nueva. Si falla, la data quedó subida pero no publicada, así que se limpia
+            # la collection nueva antes de propagar para no dejar residuo ocupando disco y RAM.
+            try:
+                client.aliases.upsert(target_alias, {'collection_name': stream_name})
+            except Exception as e:
+                logger.error(f"Error actualizando el alias {target_alias} -> {stream_name}: {e}")
+                logger.warning(f"Se eliminará la collection {stream_name}: la data no quedó publicada")
+                try:
+                    client.collections[stream_name].delete()
+                except Exception as cleanup_error:
+                    logger.error(f"Error eliminando la collection {stream_name}: {cleanup_error}")
+                raise
             
             # Eliminar la collection vieja en caso de existir. La data ya fue migrada y el alias
             # ya apunta a la collection nueva, así que un fallo acá no debe reportarse como fallo
@@ -107,8 +119,10 @@ class DestinationTypesense(Destination):
                 except exceptions.ObjectNotFound:
                     logger.info(f"Omitiendo eliminación de la collection anterior {old_collection}. Ya fue eliminada anteriormente o no existe")
                 except Exception as e:
+                    # No se relanza a propósito: la data ya está publicada bajo el alias, así que
+                    # esto es limpieza pendiente, no un fallo del sync. El barrido de stale
+                    # collections del siguiente sync de este stream se encarga de borrarla.
                     logger.error(f"Error eliminando collection anterior de typesense {old_collection}: {e}")
-                    continue
                 
                 
     def check(self, logger: Logger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
