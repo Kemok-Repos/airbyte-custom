@@ -3,6 +3,14 @@
 This is the repository for the Typesense destination connector, written in Python.
 For information about how to use this connector within Airbyte, see [the documentation](https://docs.airbyte.io/integrations/destinations/typesense).
 
+> **⚠️ No actualizar a la versión upstream desde la UI de Airbyte.** El tag `kemok`
+> desplegado en Settings → Destinations es un fork de este repo con lógica propia
+> (clonado desde `template_collection`, manejo de aliases, barrido de collections
+> stale). La UI ofrece un "Change to X.Y.Z (latest)" hacia el conector oficial de
+> Airbyte, que no tiene nada de esto — aceptarlo reemplaza el conector, no lo
+> actualiza, y rompe el sync para todas las connections que usan este destino
+> (Guatecompras, Explora y La Hora comparten la misma instancia de Airbyte).
+
 ## Local development
 
 ### Prerequisites
