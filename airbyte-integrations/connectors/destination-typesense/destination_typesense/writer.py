@@ -41,8 +41,19 @@ class TypesenseWriter:
         if buffer_size == 0:
             return
         logger.info(f"Uploading {buffer_size} records to Typesense's {self.stream_name} collection")
-        self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
+        results = self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()
+
+        failures = [result for result in results if not result.get("success", False)]
+        if failures:
+            logger.error(
+                f"{len(failures)} of {buffer_size} records were rejected importing into "
+                f"{self.stream_name}. First error: {failures[0].get('error')}"
+            )
+            raise RuntimeError(
+                f"Typesense rejected {len(failures)} of {buffer_size} records "
+                f"while importing into {self.stream_name}"
+            )
 
     def clean_text(self, text: str):
         if not text:
