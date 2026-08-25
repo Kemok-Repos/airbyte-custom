@@ -44,15 +44,22 @@ class TypesenseWriter:
         results = self.client.collections[self.stream_name].documents.import_(self.write_buffer, {"action": "upsert"})
         self.write_buffer.clear()
 
+        # Solo se loguea, no se levanta excepcion. destination.py envuelve toda la fase
+        # de escritura en un try que, ante cualquier excepcion, borra la collection recien
+        # creada y propaga: un unico documento rechazado abortaria la corrida entera. Para
+        # typesense_npgs eso son ~860 lotes y ~2h20m de subida tirados, multiplicados por
+        # los 3 intentos de SYNC_JOB_MAX_ATTEMPTS y ~40 GB de churn de WAL por intento
+        # sobre el disco que ya se lleno dos veces.
+        #
+        # Hoy no existe una sola medicion de cuantos rechazos hay por corrida, porque esta
+        # respuesta se venia descartando. Loguear primero da ese dato sin agregar ningun
+        # modo de falla nuevo; con el numero en la mano se decide si conviene fallar duro
+        # o pasado un umbral.
         failures = [result for result in results if not result.get("success", False)]
         if failures:
             logger.error(
                 f"{len(failures)} of {buffer_size} records were rejected importing into "
                 f"{self.stream_name}. First error: {failures[0].get('error')}"
-            )
-            raise RuntimeError(
-                f"Typesense rejected {len(failures)} of {buffer_size} records "
-                f"while importing into {self.stream_name}"
             )
 
     def clean_text(self, text: str):
