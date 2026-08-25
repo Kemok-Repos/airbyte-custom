@@ -33,6 +33,20 @@ class DestinationTypesense(Destination):
         configured_catalog: ConfiguredAirbyteCatalog,
         input_messages: Iterable[AirbyteMessage]
     ) -> Iterable[AirbyteMessage]:
+        # input_messages es un iterador de un solo uso: si la connection tuviera más de un
+        # stream, el primero agotaría el iterador y los siguientes clonarían su template sin
+        # recibir un solo record, publicando una collection vacía bajo su alias. La UI de
+        # Airbyte permite agregar un segundo stream a una connection existente con un clic,
+        # así que se valida acá para fallar ruidosamente en vez de vaciar una colección en
+        # producción sin un solo error (B-07).
+        if len(configured_catalog.streams) != 1:
+            stream_names = [s.stream.name for s in configured_catalog.streams]
+            raise ValueError(
+                f"destination-typesense solo soporta un stream por connection, se recibieron "
+                f"{len(configured_catalog.streams)}: {stream_names}. Cada collection debe vivir "
+                "en su propia connection de un solo stream."
+            )
+
         client = get_client(config=config)
 
         for configured_stream in configured_catalog.streams:
