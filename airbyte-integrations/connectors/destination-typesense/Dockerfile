@@ -34,5 +34,11 @@ COPY destination_typesense ./destination_typesense
 ENV AIRBYTE_ENTRYPOINT "python /airbyte/integration_code/main.py"
 ENTRYPOINT ["python", "/airbyte/integration_code/main.py"]
 
-LABEL io.airbyte.version=kemok
+# El label queda igual al tag con el que se construye. `kemok` es un tag mutable: no dice
+# cuando se armo la imagen ni de que commit salio, asi que `docker inspect` sobre la imagen
+# desplegada no permitia distinguir una build de otra. Construir con
+#   docker build --build-arg VERSION=kemok-2026-08-26 -t airbyte/destination-typesense:kemok-2026-08-26 .
+# deja el label y el tag diciendo lo mismo. Sin --build-arg se comporta como antes.
+ARG VERSION=kemok
+LABEL io.airbyte.version=$VERSION
 LABEL io.airbyte.name=airbyte/destination-typesense
