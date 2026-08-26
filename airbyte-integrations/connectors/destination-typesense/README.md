@@ -3,6 +3,26 @@
 This is the repository for the Typesense destination connector, written in Python.
 For information about how to use this connector within Airbyte, see [the documentation](https://docs.airbyte.io/integrations/destinations/typesense).
 
+> **⚠️ No actualizar a la versión upstream desde la UI de Airbyte.** El tag `kemok`
+> desplegado en Settings → Destinations es un fork de este repo con lógica propia
+> (clonado desde `template_collection`, manejo de aliases, barrido de collections
+> stale). La UI ofrece un "Change to X.Y.Z (latest)" hacia el conector oficial de
+> Airbyte, que no tiene nada de esto — aceptarlo reemplaza el conector, no lo
+> actualiza, y rompe el sync para todas las connections que usan este destino
+> (Guatecompras, Explora y La Hora comparten la misma instancia de Airbyte).
+
+> **⚠️ Una sola instancia de Airbyte (`senz-airbyte.kemok.io`) atiende Guatecompras,
+> Explora y La Hora, contra dos servidores Typesense separados.** Un incidente o un
+> clic erróneo en esa instancia afecta a los tres productos a la vez, aunque sus
+> servidores de aplicación y Typesense estén separados. Dos reglas al operarla:
+> - Todas las connections deben quedar en modo **Manual**. No es un descuido — el
+>   sync lo orquestan los DAGs de Airflow (`sync_typesense*.py` en `senz-dags`), no
+>   el scheduler propio de Airbyte. Activar un scheduler en Airbyte duplicaría syncs.
+> - La connection `Guatecompras → Typesense GT` está **pausada** porque apunta al
+>   servidor Typesense antiguo. No reactivarla: escribiría datos al destino
+>   equivocado. Debe borrarse o renombrarse como obsoleta (pendiente en la UI de
+>   Airbyte — no cubierto por este repo).
+
 ## Local development
 
 ### Prerequisites
