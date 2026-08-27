@@ -12,7 +12,12 @@ RUN apk --no-cache upgrade \
 
 COPY setup.py ./
 # install necessary packages to a temporary folder
-RUN pip install --prefix=/install .
+# airbyte-cdk==0.30.3 fija PyYAML~=5.4 (5.4.1), que no compila contra Cython
+# >=3 -- https://github.com/yaml/pyyaml/issues/601. Sin este constraint, pip
+# resuelve la ultima Cython para el build aislado de PyYAML y revienta con
+# "build_ext object has no attribute 'cython_sources'".
+RUN printf 'Cython<3.0.0\n' > /tmp/pip-constraints.txt \
+    && PIP_CONSTRAINT=/tmp/pip-constraints.txt pip install --prefix=/install .
 
 # build a clean environment
 FROM base
